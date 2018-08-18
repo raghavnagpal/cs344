@@ -31,14 +31,15 @@
 //You should fill in the kernel as well as set the block and grid sizes
 //so that the entire image is processed.
 
+#include <curand_mtgp32_kernel.h>
+#include <device_launch_parameters.h>
 #include "utils.h"
 
 __global__
-void rgba_to_greyscale(const uchar4* const rgbaImage,
-                       unsigned char* const greyImage,
-                       int numRows, int numCols)
-{
-  //TODO
+void rgba_to_greyscale(const uchar4 *const rgbaImage,
+                       unsigned char *const greyImage,
+                       int numRows, int numCols) {
+  //
   //Fill in the kernel to convert from color to greyscale
   //the mapping from components of a uchar4 to RGBA is:
   // .x -> R ; .y -> G ; .z -> B ; .w -> A
@@ -50,17 +51,27 @@ void rgba_to_greyscale(const uchar4* const rgbaImage,
   //First create a mapping from the 2D block and grid locations
   //to an absolute 2D location in the image, then use that to
   //calculate a 1D offset
+  int tid = blockIdx.x * blockDim.x + threadIdx.x + (blockIdx.y * blockDim.y + threadIdx.y) * numRows;
+
+  if (tid < numCols * numRows) {
+    greyImage[tid] = (unsigned char) (.299f * rgbaImage[tid].x + .587f * rgbaImage[tid].y +
+                                      .114f * rgbaImage[tid].z);
+  }
+
 }
 
-void your_rgba_to_greyscale(const uchar4 * const h_rgbaImage, uchar4 * const d_rgbaImage,
-                            unsigned char* const d_greyImage, size_t numRows, size_t numCols)
-{
+void your_rgba_to_greyscale(const uchar4 *const h_rgbaImage, uchar4 *const d_rgbaImage,
+                            unsigned char *const d_greyImage, size_t numRows, size_t numCols) {
   //You must fill in the correct sizes for the blockSize and gridSize
   //currently only one block with one thread is being launched
-  const dim3 blockSize(1, 1, 1);  //TODO
-  const dim3 gridSize( 1, 1, 1);  //TODO
-  rgba_to_greyscale<<<gridSize, blockSize>>>(d_rgbaImage, d_greyImage, numRows, numCols);
-  
-  cudaDeviceSynchronize(); checkCudaErrors(cudaGetLastError());
+  unsigned int thread_count = 16;
+  unsigned int block_count_y = (unsigned int) ceil((float) numCols / (thread_count));
+  unsigned int block_count_x = (unsigned int) ceil((float) numRows / (thread_count));
+  const dim3 blockSize(thread_count, thread_count, 1);
+  const dim3 gridSize(block_count_x, block_count_y, 1);
+  rgba_to_greyscale << < gridSize, blockSize >> > (d_rgbaImage, d_greyImage, numRows, numCols);
+
+  cudaDeviceSynchronize();
+  checkCudaErrors(cudaGetLastError());
 
 }

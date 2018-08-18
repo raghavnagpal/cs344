@@ -22,3 +22,9 @@
 build
 bin
 
+# Clion stuff
+.idea
+.idea/codeStyles/codeStyleConfig.xml
+cmake-build-debug
+cmake-build-release
+
